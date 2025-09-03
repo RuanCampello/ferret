@@ -1,8 +1,14 @@
 //! This module index recursively a directory files concurrently with [TF-IDF](https://en.wikipedia.org/wiki/Tf%E2%80%93idf).
 
 use dashmap::DashMap;
-use rayon::iter::{IntoParallelRefIterator, ParallelBridge, ParallelIterator};
-use std::path::{Path, PathBuf};
+use rayon::iter::{
+    IndexedParallelIterator, IntoParallelRefIterator, ParallelBridge, ParallelIterator,
+};
+use std::{
+    fs::read_to_string,
+    path::{Path, PathBuf},
+    sync::atomic::{AtomicUsize, Ordering},
+};
 use thiserror::Error;
 use walkdir::WalkDir;
 
@@ -28,7 +34,10 @@ struct Document<'d> {
 }
 
 #[derive(Debug, Error)]
-enum IndexError {}
+enum IndexError {
+    #[error(transparent)]
+    Io(#[from] std::io::Error),
+}
 
 /// The max size in mb of a file that we can index.
 const MAX_FILE_SIZE: usize = 10;
@@ -37,6 +46,11 @@ const MIN_TOKEN_LENGTH: usize = 2;
 impl Indexer {
     fn index_directories<'i>(&self, directories: &[PathBuf]) -> Result<Index<'i>, IndexError> {
         let paths = self.collect_files(directories)?;
+        let contents: Result<Vec<String>, _> =
+            paths.par_iter().map(|path| read_to_string(path)).collect();
+        let contents = contents?;
+
+        let documents = self.document_files(&paths, &contents);
         todo!()
     }
 
@@ -61,6 +75,41 @@ impl Indexer {
             .collect();
 
         Ok(files)
+    }
+
+    fn document_files<'i>(
+        &self,
+        paths: &'i [PathBuf],
+        contents: &'i [String],
+    ) -> Vec<Document<'i>> {
+        // we need a trustful counter for this case
+        let id = AtomicUsize::new(0);
+
+        let documents = paths
+            .par_iter()
+            .zip(contents.par_iter())
+            .map(|(path, content)| {
+                let tokens = self.tokenize(content);
+                let name = match path.file_name() {
+                    Some(filename) => filename.to_str(),
+                    None => Some("unknown"),
+                }
+                .unwrap_or("unknown");
+
+                Document {
+                    id: id.fetch_add(1, Ordering::Relaxed),
+                    name,
+                    path: path.as_path(),
+                    tokens,
+                }
+            })
+            .collect();
+
+        documents
+    }
+
+    fn tokenize<'i>(&self, content: &'i str) -> DashMap<&'i str, usize> {
+        todo!()
     }
 
     fn is_parsable(path: &Path) -> bool {
