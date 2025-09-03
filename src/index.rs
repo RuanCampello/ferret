@@ -1,8 +1,9 @@
 //! This module index recursively a directory files concurrently with [TF-IDF](https://en.wikipedia.org/wiki/Tf%E2%80%93idf).
 
 use dashmap::DashMap;
-use rayon::iter::{
-    IndexedParallelIterator, IntoParallelRefIterator, ParallelBridge, ParallelIterator,
+use rayon::{
+    iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelBridge, ParallelIterator},
+    slice::ParallelSlice,
 };
 use std::{
     fs::read_to_string,
@@ -44,6 +45,14 @@ const MAX_FILE_SIZE: usize = 10;
 const MIN_TOKEN_LENGTH: usize = 2;
 
 impl Indexer {
+    const SEPARATORS: &[char] = &[
+        '(', ')', '[', ']', '{', '}', '<', '>', ',', ';', ':', '.', '!', '?', '"', '\'', '`', ' ',
+        '\t', '\n',
+    ];
+    const TRIMMERS: &[char] = &[
+        '_', '-', '=', '+', '*', '/', '\\', '|', '&', '%', '$', '#', '@', '^', '~', ' ',
+    ];
+
     fn index_directories<'i>(&self, directories: &[PathBuf]) -> Result<Index<'i>, IndexError> {
         let paths = self.collect_files(directories)?;
         let contents: Result<Vec<String>, _> =
@@ -109,7 +118,22 @@ impl Indexer {
     }
 
     fn tokenize<'i>(&self, content: &'i str) -> DashMap<&'i str, usize> {
-        todo!()
+        let tokens = DashMap::new();
+        let words: Vec<&str> = content.split_whitespace().collect();
+        let chunk = (words.len() / rayon::current_num_threads()).max(100);
+
+        words.par_chunks(chunk).for_each(|word_chunk| {
+            word_chunk.into_iter().for_each(|word| {
+                word.split(Self::SEPARATORS)
+                    .map(|w| w.trim_matches(Self::TRIMMERS))
+                    .filter(|w| {
+                        w.len() >= self.min_token_length && !w.chars().all(|c| c.is_numeric())
+                    })
+                    .for_each(|token| *tokens.entry(token).or_insert(0) += 1);
+            })
+        });
+
+        tokens
     }
 
     fn is_parsable(path: &Path) -> bool {
