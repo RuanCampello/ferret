@@ -136,6 +136,49 @@ impl Indexer {
         tokens
     }
 
+    fn calculate_tf_idf<'i>(
+        &self,
+        documents: &[Document<'i>],
+    ) -> (DashMap<(usize, &'i str), f64>, DashMap<&'i str, f64>) {
+        let docs_len = documents.len() as f64;
+
+        let doc_freq = DashMap::new();
+        documents.par_iter().for_each(|doc| {
+            doc.tokens
+                .iter()
+                .map(|token| *token.key())
+                .for_each(|token| *doc_freq.entry(token).or_insert(0) += 1);
+        });
+
+        let scores = DashMap::new();
+        documents.par_iter().for_each(|doc| {
+            let doc_token_count: usize = doc.tokens.iter().map(|entry| *entry.value()).sum();
+
+            doc.tokens.iter().for_each(|entry| {
+                let token = *entry.key();
+                let freq = *entry.value();
+
+                if let Some(entry) = doc_freq.get(&token) {
+                    let df = *entry.value() as f64;
+                    let tf = freq as f64 / doc_token_count as f64;
+                    let idf = (docs_len / df).ln();
+                    let tf_idf = tf * idf;
+
+                    scores.insert((doc.id, token), tf_idf);
+                }
+            });
+        });
+
+        let vocabulary = DashMap::new();
+        doc_freq.iter().for_each(|entry| {
+            let token = *entry.key();
+            let idf = (docs_len / *entry.value() as f64).ln();
+            vocabulary.insert(token, idf);
+        });
+
+        (scores, vocabulary)
+    }
+
     fn is_parsable(path: &Path) -> bool {
         match path.extension().and_then(|e| e.to_str()) {
             Some(ext) => matches!(
