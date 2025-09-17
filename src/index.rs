@@ -19,18 +19,18 @@ struct Indexer {
 }
 
 #[derive(Debug)]
-struct Index<'i> {
-    documents: Vec<Document<'i>>,
-    scores: DashMap<(usize, &'i str), f64>,
-    vocabulary: DashMap<&'i str, f64>,
+pub struct Index<'i> {
+    pub documents: Vec<Document<'i>>,
+    pub scores: DashMap<(usize, &'i str), f64>,
+    pub vocabulary: DashMap<&'i str, f64>,
 }
 
 #[derive(Debug)]
-struct Document<'d> {
-    id: usize,
-    name: &'d str,
-    path: &'d Path,
-    tokens: DashMap<&'d str, usize>,
+pub struct Document<'d> {
+    pub id: usize,
+    pub name: &'d str,
+    pub path: &'d Path,
+    pub tokens: DashMap<&'d str, usize>,
 }
 
 #[derive(Debug, Error)]
