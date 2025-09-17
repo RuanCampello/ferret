@@ -6,7 +6,6 @@ use rayon::{
     slice::ParallelSlice,
 };
 use std::{
-    fs::read_to_string,
     path::{Path, PathBuf},
     sync::atomic::{AtomicUsize, Ordering},
 };
@@ -21,7 +20,7 @@ struct Indexer {
 
 #[derive(Debug)]
 struct Index<'i> {
-    documents: Vec<&'i Document<'i>>,
+    documents: Vec<Document<'i>>,
     scores: DashMap<(usize, &'i str), f64>,
     vocabulary: DashMap<&'i str, f64>,
 }
@@ -53,14 +52,19 @@ impl Indexer {
         '_', '-', '=', '+', '*', '/', '\\', '|', '&', '%', '$', '#', '@', '^', '~', ' ',
     ];
 
-    fn index_directories<'i>(&self, directories: &[PathBuf]) -> Result<Index<'i>, IndexError> {
-        let paths = self.collect_files(directories)?;
-        let contents: Result<Vec<String>, _> =
-            paths.par_iter().map(|path| read_to_string(path)).collect();
-        let contents = contents?;
+    fn index_directories<'i>(
+        &self,
+        paths: &'i [PathBuf],
+        contents: &'i [String],
+    ) -> Result<Index<'i>, IndexError> {
+        let documents = self.document_files(&paths, contents);
+        let (scores, vocabulary) = self.calculate_tf_idf(&documents);
 
-        let documents = self.document_files(&paths, &contents);
-        todo!()
+        Ok(Index {
+            documents,
+            scores,
+            vocabulary,
+        })
     }
 
     fn collect_files(&self, directories: &[PathBuf]) -> Result<Vec<PathBuf>, IndexError> {
