@@ -13,9 +13,9 @@ use thiserror::Error;
 use walkdir::WalkDir;
 
 #[derive(Debug, PartialEq)]
-struct Indexer {
-    min_token_length: usize,
-    max_file_size: usize,
+pub struct Indexer {
+    pub min_token_length: usize,
+    pub max_file_size: usize,
 }
 
 #[derive(Debug)]
