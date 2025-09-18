@@ -184,7 +184,7 @@ impl Indexer {
     }
 
     fn is_parsable(path: &Path) -> bool {
-        match path.extension().and_then(|e| e.to_str()) {
+        let is_ext = match path.extension().and_then(|e| e.to_str()) {
             Some(ext) => matches!(
                 ext.to_lowercase().as_str(),
                 // languages
@@ -203,7 +203,7 @@ impl Indexer {
             _ => false,
         };
 
-        match path.file_stem().and_then(|s| s.to_str()) {
+        let is_stem = match path.file_stem().and_then(|s| s.to_str()) {
             Some(stem) => matches!(
                 stem.to_lowercase().as_str(),
                 "readme"
@@ -221,7 +221,9 @@ impl Indexer {
                     | "manifest"
             ),
             _ => false,
-        }
+        };
+
+        is_stem || is_ext
     }
 }
 
