@@ -1,11 +1,8 @@
 <div align="center">
     <h1>Ferret</h1>
     <h3>(/ˈfɛr.ɪt/)</h3>
-    <img alt="Ferret" src=".github/ferret-icon.png" width="180" height="180" />
+   <!-- <img alt="Ferret" src=".github/ferret-icon.png" width="180" height="180" /> -!-->
     <h5>Sniffs out code, leaves no file unturned :mag: </h5>
-
-![Rust](https://img.shields.io/badge/rust-yes-d62828?style=for-the-badge&logo=rust)
-![Prolog](https://img.shields.io/badge/prolog-yes-313244?style=for-the-badge&logo=prolog)
 </div>
 
 ---
