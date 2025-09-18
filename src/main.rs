@@ -36,14 +36,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let files = indexer.collect_files(&args.directories)?;
     println!("Found {} files to index.", files.len());
 
-    let contents: Vec<String> = files
+    let (contents, lengths): (Vec<String>, Vec<usize>) = files
         .par_iter()
-        .map(|path| fs::read_to_string(path).unwrap_or_default())
-        .collect();
+        .map(|path| {
+            let content = fs::read_to_string(path).unwrap_or_default();
+            let len = content.len();
+            (content, len)
+        })
+        .collect::<Vec<_>>()
+        .into_iter()
+        .unzip();
+
+    let total_length: usize = lengths.into_iter().sum();
 
     let index = indexer.index_directories(&files, &contents)?;
     Writer::write_facts(&args.output, &index)?;
 
     println!("Facts written to {}", args.output.display());
+    println!("Read {total_length} total lines");
     Ok(())
 }
