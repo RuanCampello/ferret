@@ -34,14 +34,14 @@ pub struct Document<'d> {
 }
 
 #[derive(Debug, Error)]
-enum IndexError {
+pub enum IndexError {
     #[error(transparent)]
     Io(#[from] std::io::Error),
 }
 
 /// The max size in mb of a file that we can index.
-const MAX_FILE_SIZE: usize = 10;
-const MIN_TOKEN_LENGTH: usize = 2;
+pub const MAX_FILE_SIZE: usize = 10;
+pub const MIN_TOKEN_LENGTH: usize = 2;
 
 impl Indexer {
     const SEPARATORS: &[char] = &[
@@ -52,7 +52,7 @@ impl Indexer {
         '_', '-', '=', '+', '*', '/', '\\', '|', '&', '%', '$', '#', '@', '^', '~', ' ',
     ];
 
-    fn index_directories<'i>(
+    pub fn index_directories<'i>(
         &self,
         paths: &'i [PathBuf],
         contents: &'i [String],
@@ -67,7 +67,7 @@ impl Indexer {
         })
     }
 
-    fn collect_files(&self, directories: &[PathBuf]) -> Result<Vec<PathBuf>, IndexError> {
+    pub fn collect_files(&self, directories: &[PathBuf]) -> Result<Vec<PathBuf>, IndexError> {
         let max_size = self.max_file_size * 1024 * 1024; // we need to convert the usize into mb
 
         let files = directories
@@ -90,7 +90,7 @@ impl Indexer {
         Ok(files)
     }
 
-    fn document_files<'i>(
+    pub fn document_files<'i>(
         &self,
         paths: &'i [PathBuf],
         contents: &'i [String],
