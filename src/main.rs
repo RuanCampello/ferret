@@ -46,8 +46,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let contents = fs::read_to_string(&facts)?;
         let mut documents = std::collections::HashMap::new();
         let mut token_results = Vec::new();
-        let mut vocab_results = Vec::new();
 
+        let query_lc = query.to_lowercase();
         for line in contents.lines() {
             if line.starts_with("document(") {
                 let open = line.find('(').unwrap_or(0);
@@ -63,22 +63,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
 
         for line in contents.lines() {
-            if line.starts_with("token(") && line.contains(&format!("'{}'", query)) {
+            if line.starts_with("token(") {
                 let open = line.find('(').unwrap_or(0);
                 let close = line.find(')').unwrap_or(line.len() - 1);
                 let args: Vec<&str> = line[open + 1..close].split(',').collect();
                 if args.len() >= 3 {
                     let id = args[0].trim().parse::<usize>().unwrap_or(0);
+                    let token_str = args[1].trim().trim_matches('\'').to_lowercase();
                     let score = args[2].trim().parse::<f64>().unwrap_or(0.0);
-                    let (path, name) = documents
-                        .get(&id)
-                        .cloned()
-                        .unwrap_or(("???".into(), "???".into()));
-                    token_results.push((score, query.clone(), path, name));
+                    if token_str == query_lc {
+                        let (path, name) = documents
+                            .get(&id)
+                            .cloned()
+                            .unwrap_or(("???".into(), "???".into()));
+                        token_results.push((score, query.clone(), path, name));
+                    }
                 }
-            }
-            if line.starts_with("vocab(") && line.contains(&format!("'{}'", query)) {
-                vocab_results.push(line.trim().to_string());
             }
         }
 
