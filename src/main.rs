@@ -6,6 +6,7 @@ use clap::Parser;
 use rayon::prelude::*;
 use std::{fs, path::PathBuf};
 
+mod client;
 mod index;
 mod writer;
 
