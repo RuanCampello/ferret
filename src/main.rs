@@ -2,17 +2,19 @@ use crate::{
     index::{Indexer, MAX_FILE_SIZE, MIN_TOKEN_LENGTH},
     writer::Writer,
 };
-use clap::Parser;
+use clap::{Parser, Subcommand};
 use rayon::prelude::*;
 use std::{fs, path::PathBuf};
 
-mod client;
 mod index;
 mod writer;
 
 #[derive(Parser)]
 #[command(name = "ferret")]
 struct Args {
+    #[command(subcommand)]
+    command: Option<Command>,
+
     #[arg(required = true)]
     directories: Vec<PathBuf>,
 
@@ -23,11 +25,52 @@ struct Args {
     min_token_length: usize,
     #[arg(long, default_value_t = MAX_FILE_SIZE)]
     max_file_size: usize, // in MB
+
+    #[arg(long)]
+    query: Option<String>,
+}
+
+#[derive(Subcommand)]
+enum Command {
+    Query {
+        query: String,
+        #[arg(short, long, default_value = "facts.pl")]
+        facts: PathBuf,
+    },
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
-    println!("Ferret indexer starting...");
+
+    if let Some(Command::Query { query, facts }) = args.command {
+        let contents = fs::read_to_string(&facts)?;
+        let mut token_results = Vec::new();
+        let mut vocab_results = Vec::new();
+
+        for line in contents.lines() {
+            if line.starts_with("token(") && line.contains(&format!("'{}'", query)) {
+                token_results.push(line.trim());
+            }
+            if line.starts_with("vocab(") && line.contains(&format!("'{}'", query)) {
+                vocab_results.push(line.trim());
+            }
+        }
+
+        println!("\nToken Results");
+        for result in token_results {
+            println!("{result}");
+        }
+        println!("\nVocabulary Results");
+        for result in vocab_results {
+            println!("{result}");
+        }
+        return Ok(());
+    }
+
+    if args.directories.is_empty() {
+        eprintln!("No directories specified.");
+        return Ok(());
+    }
 
     let indexer = Indexer {
         min_token_length: args.min_token_length,

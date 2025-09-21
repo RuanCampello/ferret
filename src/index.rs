@@ -67,6 +67,24 @@ impl Indexer {
         })
     }
 
+    pub fn query<'i>(&self, index: &Index<'i>, input: &str) -> Vec<(usize, &'i str, f64)> {
+        let tokens = self.tokenize(input);
+        let mut results = Vec::new();
+
+        for token in tokens.iter().map(|e| *e.key()) {
+            let matches = index
+                .scores
+                .iter()
+                .filter(|e| e.key().1 == token)
+                .map(|e| (e.key().0, e.key().1, *e.value()));
+
+            results.extend(matches)
+        }
+
+        results.sort_by(|a, b| b.2.partial_cmp(&a.2).unwrap());
+        results
+    }
+
     pub fn collect_files(&self, directories: &[PathBuf]) -> Result<Vec<PathBuf>, IndexError> {
         let max_size = self.max_file_size * 1024 * 1024; // we need to convert the usize into mb
 
