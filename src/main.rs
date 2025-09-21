@@ -15,7 +15,7 @@ struct Args {
     #[command(subcommand)]
     command: Option<Command>,
 
-    #[arg(required = true)]
+    #[arg(required = false)]
     directories: Vec<PathBuf>,
 
     #[arg(short, long, default_value = "facts.pl")]
@@ -44,25 +44,52 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     if let Some(Command::Query { query, facts }) = args.command {
         let contents = fs::read_to_string(&facts)?;
+        let mut documents = std::collections::HashMap::new();
         let mut token_results = Vec::new();
         let mut vocab_results = Vec::new();
 
         for line in contents.lines() {
-            if line.starts_with("token(") && line.contains(&format!("'{}'", query)) {
-                token_results.push(line.trim());
-            }
-            if line.starts_with("vocab(") && line.contains(&format!("'{}'", query)) {
-                vocab_results.push(line.trim());
+            if line.starts_with("document(") {
+                let open = line.find('(').unwrap_or(0);
+                let close = line.find(')').unwrap_or(line.len() - 1);
+                let args: Vec<&str> = line[open + 1..close].split(',').collect();
+                if args.len() >= 3 {
+                    let id = args[0].trim().parse::<usize>().unwrap_or(0);
+                    let path = args[1].trim().trim_matches('\'').to_string();
+                    let name = args[2].trim().trim_matches('\'').to_string();
+                    documents.insert(id, (path, name));
+                }
             }
         }
 
-        println!("\nToken Results");
-        for result in token_results {
-            println!("{result}");
+        for line in contents.lines() {
+            if line.starts_with("token(") && line.contains(&format!("'{}'", query)) {
+                let open = line.find('(').unwrap_or(0);
+                let close = line.find(')').unwrap_or(line.len() - 1);
+                let args: Vec<&str> = line[open + 1..close].split(',').collect();
+                if args.len() >= 3 {
+                    let id = args[0].trim().parse::<usize>().unwrap_or(0);
+                    let score = args[2].trim().parse::<f64>().unwrap_or(0.0);
+                    let (path, name) = documents
+                        .get(&id)
+                        .cloned()
+                        .unwrap_or(("???".into(), "???".into()));
+                    token_results.push((score, query.clone(), path, name));
+                }
+            }
+            if line.starts_with("vocab(") && line.contains(&format!("'{}'", query)) {
+                vocab_results.push(line.trim().to_string());
+            }
         }
-        println!("\nVocabulary Results");
-        for result in vocab_results {
-            println!("{result}");
+
+        token_results.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
+
+        println!("\nResults");
+        for (score, token, path, name) in token_results {
+            println!(
+                "score={:.6} | token='{}' | file='{}' | name='{}'",
+                score, token, path, name
+            );
         }
         return Ok(());
     }
